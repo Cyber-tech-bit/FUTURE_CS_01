@@ -1,69 +1,62 @@
 # Vulnerability Assessment Report – Live Website
 
-![HTTP Login Page](screenshots/http_login_page.png)
-
 ## Future Interns Cyber Security Internship
 
 **Prepared by:** Keerit Kapoor
 **Task:** Task 1 – Vulnerability Assessment Report
-**Assessment date:** 20 June 2026
+**Assessment Date:** 20 June 2026
 **Target:** `http://testaspnet.vulnweb.com/login.aspx`
 
 ---
 
 ## Objective
 
-Conduct a passive vulnerability assessment of a public security-training web application and document observable security risks, their potential impact, and recommended remediation steps.
+Conduct a limited and ethical vulnerability assessment of a public security-training web application. The work focused on observable security weaknesses, evidence collection, risk classification, and remediation guidance.
 
-> **Ethical Note:** This assessment was limited to passive observation using the browser and Developer Tools. No exploitation, credential testing, SQL injection, brute forcing, or other intrusive testing was performed.
-
----
-
-## Scope
-
-| Item            | Details                                                                                      |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| Target URL      | `http://testaspnet.vulnweb.com/login.aspx`                                                   |
-| Assessment Type | Passive vulnerability assessment                                                             |
-| In Scope        | Login page, HTTP transport, visible response headers                                         |
-| Out of Scope    | Exploitation, authentication testing, SQL injection, XSS, brute force, and data modification |
+> **Ethical Scope:** Only passive observation and a limited Nmap service-identification scan were conducted. No SQL injection, credential testing, brute force, active scanning, exploitation, or modification of data was performed.
 
 ---
 
 ## Tools Used
 
-* **Browser Developer Tools** – inspected network requests and HTTP response headers
-* **Manual Browser Review** – reviewed the login page and transport security indicator
+* **Nmap 7.99** – limited service detection on TCP port 80
+* **OWASP ZAP 2.17.0** – Safe Mode, passive analysis only
+* **Browser Developer Tools** – HTTP request and response-header inspection
+* **GitHub** – portfolio documentation and evidence storage
 
 ---
 
-## Methodology
+## Scope and Methodology
 
-1. Opened the target login page in a browser.
-2. Confirmed whether the page used HTTP or HTTPS.
-3. Used Browser Developer Tools → Network to inspect the document request.
-4. Reviewed visible response headers for unnecessary technology disclosure.
-5. Classified risks based on potential confidentiality, integrity, and user-security impact.
+1. Reviewed the login page manually to confirm whether secure HTTPS transport was used.
+2. Inspected the document response and headers using Browser Developer Tools.
+3. Ran a limited Nmap command against the authorised demo target:
+
+```text
+nmap -sV -p 80 testaspnet.vulnweb.com
+```
+
+4. Explored only the login page through OWASP ZAP in **Safe Mode** and reviewed passive alerts.
+5. Excluded active scanning, form submission, authentication attempts, SQL injection, XSS testing, brute forcing, and exploitation.
 
 ---
 
 ## Executive Summary
 
-The assessment identified two observable security issues:
+The assessment identified a high-risk transport-security weakness: the login page is accessible over unencrypted HTTP while displaying username and password fields.
 
-* The login page is available over unencrypted HTTP.
-* The server response exposes web-server and framework version information.
-
-The most significant issue is the use of HTTP on a page containing username and password fields. If real users entered credentials on an untrusted network, the information could potentially be exposed or modified in transit.
+Additional findings included missing browser-side protection headers and unnecessary technology/version disclosure through HTTP response headers. OWASP ZAP also flagged a possible absence of anti-CSRF tokens; this alert has **low confidence** and would require authorised manual validation before being treated as a confirmed vulnerability.
 
 ---
 
 ## Findings Summary
 
-| ID   | Finding                                           | Severity | Status |
-| ---- | ------------------------------------------------- | -------: | ------ |
-| F-01 | Sensitive Login Page Served Over Unencrypted HTTP |     High | Open   |
-| F-02 | Server and Framework Information Disclosure       |      Low | Open   |
+| ID   | Finding                                           | Severity | Status              |
+| ---- | ------------------------------------------------- | -------: | ------------------- |
+| F-01 | Sensitive Login Page Served Over Unencrypted HTTP |     High | Confirmed           |
+| F-02 | Missing Browser Security Headers                  |   Medium | Confirmed           |
+| F-03 | Server and Framework Information Disclosure       |      Low | Confirmed           |
+| F-04 | Possible Absence of Anti-CSRF Tokens              |   Medium | Requires Validation |
 
 ---
 
@@ -74,107 +67,152 @@ The most significant issue is the use of HTTP on a page containing username and 
 
 ## Description
 
-The target login page is served using HTTP rather than HTTPS. The browser displays a **“Not secure”** indicator while the page contains fields for a username and password.
+The login page is delivered over HTTP rather than HTTPS. The page contains username and password fields while the browser displays a **Not secure** indicator.
 
-HTTP does not encrypt traffic between the user’s browser and the server.
+HTTP traffic is not encrypted, which can expose sensitive information when users access the site through untrusted networks.
 
 ## Evidence
 
-![HTTP Login Page Evidence](screenshots/http_login_page.png)
+![HTTP login-page evidence](screenshots/http_login_page.png)
 
 ## Potential Impact
 
-* Usernames and passwords may be exposed on untrusted networks.
-* An attacker positioned on the network may be able to alter traffic in transit.
-* Users may lose trust in the website due to the browser security warning.
+* Credentials could be exposed in transit.
+* Network attackers may be able to alter traffic.
+* Users receive a browser warning and may lose trust in the site.
 
 ## Recommendation
 
-* Enforce HTTPS for the entire application, especially all authentication-related pages.
+* Enforce HTTPS across the application.
 * Redirect all HTTP requests to HTTPS.
-* Configure HTTP Strict Transport Security (HSTS).
-* Mark all session cookies as `Secure`.
+* Enable HTTP Strict Transport Security (HSTS).
+* Set the `Secure` attribute on authentication and session cookies.
 
 ---
 
-# F-02: Server and Framework Information Disclosure
+# F-02: Missing Browser Security Headers
+
+**Severity:** Medium
+**Evidence Source:** OWASP ZAP passive scan
+
+## Description
+
+OWASP ZAP passive analysis reported missing browser-side protection headers, including:
+
+* Content Security Policy (CSP)
+* Anti-clickjacking protection header
+
+These headers help reduce risks such as unwanted framing of the website and certain browser-based content-injection issues.
+
+## Evidence
+
+![OWASP ZAP passive alerts](screenshots/zap_passive_alerts.png)
+
+## Recommendation
+
+* Implement a restrictive Content Security Policy.
+* Add `X-Frame-Options: DENY` or use the `frame-ancestors` CSP directive.
+* Review all security headers regularly.
+
+---
+
+# F-03: Server and Framework Information Disclosure
 
 **Severity:** Low
 **Affected URL:** `http://testaspnet.vulnweb.com/login.aspx`
 
 ## Description
 
-The HTTP response headers reveal technology and version details, including:
+The target exposes server and framework details through both Nmap service detection and HTTP response headers.
 
-* `Server: Microsoft-IIS/8.5`
+Observed details include:
+
+* `Microsoft IIS httpd 8.5`
 * `X-AspNet-Version: 2.0.50727`
 * `X-Powered-By: ASP.NET`
 
-This information can help an attacker identify the technologies used by the application during reconnaissance.
-
 ## Evidence
 
-![Response Header Evidence](screenshots/response_headers.png)
+### Nmap Service Detection
+
+![Nmap service scan](screenshots/nmap_port_80.png)
+
+### Browser Response Headers
+
+![Response-header evidence](screenshots/response_headers.png)
 
 ## Potential Impact
 
-* Makes technology fingerprinting easier.
-* May help attackers research publicly known weaknesses related to disclosed software versions.
-* Provides unnecessary detail that does not need to be exposed to users.
+Exposed technology details can make reconnaissance easier by helping attackers identify the server and framework versions in use.
 
 ## Recommendation
 
-* Remove or suppress unnecessary response headers.
-* Avoid exposing detailed server and framework versions.
-* Keep the web server and application framework updated.
-* Review server configuration regularly for information leakage.
+* Remove unnecessary response headers such as `X-Powered-By`.
+* Avoid exposing framework and detailed server-version information.
+* Keep web-server software and application frameworks patched.
+
+---
+
+# F-04: Possible Absence of Anti-CSRF Tokens
+
+**Severity:** Medium
+**Confidence:** Low
+**Status:** Requires authorised validation
+
+## Description
+
+OWASP ZAP passively flagged a possible absence of anti-CSRF tokens on the login form. The alert was generated without submitting the form or performing any active testing.
+
+Because ZAP marked the alert with **low confidence**, this should be treated as a potential issue rather than a confirmed vulnerability.
+
+## Recommendation
+
+* Validate the login workflow only with written authorisation.
+* Use anti-CSRF tokens on state-changing requests where appropriate.
+* Confirm server-side validation of those tokens.
 
 ---
 
 ## Risk Rating Guide
 
-| Severity | Meaning                                                                           |
-| -------- | --------------------------------------------------------------------------------- |
-| High     | A weakness that could significantly affect user security or sensitive information |
-| Medium   | A weakness that may create meaningful risk under certain conditions               |
-| Low      | A weakness that provides limited exposure but should still be addressed           |
+| Severity | Meaning                                                    |
+| -------- | ---------------------------------------------------------- |
+| High     | Could significantly affect sensitive data or user security |
+| Medium   | Creates meaningful risk and should be remediated           |
+| Low      | Limited exposure, but should still be addressed            |
 
 ---
 
-## Conclusion
-
-This passive assessment identified an important transport-security issue on the login page and a low-severity information-disclosure issue in the response headers.
-
-The highest priority should be migrating the login page and all sensitive application traffic to HTTPS. Removing unnecessary technology headers would further reduce the amount of information exposed to potential attackers.
-
----
-
-## Repository Contents
+## Evidence Files
 
 ```text
-FUTURE_CS_01/
-│
-├── README.md
-├── Vulnerability_Assessment_Report_Keerit_Kapoor.pdf
-│
-└── screenshots/
-    ├── http_login_page.png
-    └── response_headers.png
+screenshots/
+├── http_login_page.png
+├── nmap_port_80.png
+├── response_headers.png
+└── zap_passive_alerts.png
 ```
+
+---
+
+## Full Report
+
+[Open the full Vulnerability Assessment Report](Vulnerability_Assessment_Report_Keerit_Kapoor_UPDATED.pdf)
 
 ---
 
 ## Skills Demonstrated
 
-* Passive web security assessment
-* HTTP response-header analysis
-* Risk classification
-* Vulnerability reporting
-* Security remediation planning
-* GitHub portfolio documentation
+* Passive web-application security assessment
+* Nmap service identification
+* OWASP ZAP Safe Mode passive analysis
+* HTTP response-header review
+* Risk classification and security reporting
+* GitHub documentation
 
 ---
 
 ## Disclaimer
 
-This repository is created solely for educational and internship-portfolio purposes. The target used is a public security-testing demonstration environment. No intrusive testing or exploitation was performed.
+This repository is for educational and internship-portfolio purposes only. The target is a public Acunetix security-training environment. No unauthorised or intrusive testing was performed.
+
