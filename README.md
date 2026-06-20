@@ -197,7 +197,7 @@ screenshots/
 
 ## Full Report
 
-[Open the full Vulnerability Assessment Report](Vulnerability_Assessment_Report_Keerit_Kapoor_UPDATED.pdf)
+[Open the full Vulnerability Assessment Report](Vulnerability_Assessment_Report_Keerit_Kapoor_CANVA.pdf)
 
 ---
 
